@@ -2,326 +2,137 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>COD Zombies Prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini PC Part Picker</title>
 <style>
-body { margin: 0; overflow: hidden; background: #87ceeb; }
-canvas { display: block; }
-#instructions {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  color: white; font-size: 24px; font-family: Arial;
-  text-align: center;
-}
-#hud {
-  position: absolute; top: 10px; left: 10px;
-  color: white; font-family: Arial; font-size: 18px;
-}
-#round {
-  position: absolute; top: 10px; right: 10px;
-  color: white; font-family: Arial; font-size: 18px;
-}
-#deathScreen {
-  display:none; position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%);
-  color:red; font-size:48px; font-family: Arial; text-align:center;
-}
+  body {
+    background: #0f141b;
+    color: #e8ecf2;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    background: #1a2530;
+    padding: 15px;
+    text-align: center;
+  }
+  .container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 10px;
+  }
+  input, button {
+    padding: 8px;
+    margin: 4px;
+    border-radius: 6px;
+    border: none;
+  }
+  input {
+    width: 70%;
+    background: #111922;
+    color: white;
+  }
+  button {
+    background: #2788f6;
+    color: white;
+    cursor: pointer;
+  }
+  .product {
+    background: #1a242f;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 8px 0;
+  }
+  img {
+    width: 100%;
+    max-height: 160px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
 </style>
 </head>
 <body>
-<div id="instructions">Click to Play</div>
-<div id="hud">Health: 100 | Ammo: 15 | Score: 0</div>
-<div id="round">Round: 1</div>
-<div id="deathScreen">YOU DIED</div>
 
-<!-- Libraries -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+<header><h2>Mini PC Part Picker (Amazon)</h2></header>
+
+<div class="container">
+  <input id="urlInput" placeholder="Paste Amazon link or ASIN" />
+  <button onclick="addProduct()">Add</button>
+
+  <div id="products"></div>
+
+  <button onclick="saveWishlist()">💾 Save</button>
+  <button onclick="loadWishlist()">📂 Load</button>
+  <button onclick="openAmazonCart()">🛒 Pay (Amazon Cart)</button>
+</div>
 
 <script>
-// Scene & Renderer
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+let products = JSON.parse(localStorage.getItem('wishlist')) || [];
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
-
-// Lighting
-const ambient = new THREE.AmbientLight(0xffffff,0.5);
-scene.add(ambient);
-const sun = new THREE.DirectionalLight(0xffffff,1);
-sun.position.set(50,100,50);
-sun.castShadow = true;
-sun.shadow.mapSize.width = 2048;
-sun.shadow.mapSize.height = 2048;
-scene.add(sun);
-
-// Controls
-const controls = new THREE.PointerLockControls(camera, document.body);
-document.getElementById('instructions').addEventListener('click', ()=>controls.lock());
-controls.addEventListener('lock', ()=>document.getElementById('instructions').style.display='none');
-controls.addEventListener('unlock', ()=>document.getElementById('instructions').style.display='');
-scene.add(controls.getObject());
-camera.position.y = 1.6;
-
-// Movement
-const keys = {};
-document.addEventListener('keydown', e=>keys[e.code]=true);
-document.addEventListener('keyup', e=>keys[e.code]=false);
-
-let verticalVelocity = 0;
-let canJump = false;
-const gravity = 9.8;
-
-// Ground
-const groundGeo = new THREE.PlaneGeometry(200,200);
-const groundMat = new THREE.MeshStandardMaterial({color:0x808080});
-const ground = new THREE.Mesh(groundGeo,groundMat);
-ground.rotation.x = -Math.PI/2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// Buildings (with collision boxes)
-const buildings = [];
-for(let i=0;i<10;i++){
-  const geo = new THREE.BoxGeometry(Math.random()*8+5,Math.random()*20+10,Math.random()*8+5);
-  const mat = new THREE.MeshStandardMaterial({color:0x555555});
-  const b = new THREE.Mesh(geo,mat);
-  b.position.set((Math.random()-0.5)*100,geo.parameters.height/2,(Math.random()-0.5)*100);
-  b.castShadow = b.receiveShadow = true;
-  scene.add(b);
-  buildings.push(b);
+function extractASIN(url) {
+  const m = url.match(/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
+  if (m) return m[1];
+  if (/^[A-Z0-9]{10}$/i.test(url.trim())) return url.trim();
+  return prompt("Couldn't detect ASIN. Enter manually:");
 }
 
-// Player gun
-const gun = new THREE.Group();
-const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,1), new THREE.MeshStandardMaterial({color:0x222222}));
-barrel.position.set(0,0,-0.5);
-const handle = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.3,0.1), new THREE.MeshStandardMaterial({color:0x333333}));
-handle.position.set(0,-0.15,-0.2);
-gun.add(barrel, handle);
-gun.position.set(0,-0.2,-1);
-camera.add(gun);
-gun.traverse(c=>c.castShadow=true);
-
-// Aiming
-let aiming = false;
-document.addEventListener('mousedown',(e)=>{ if(e.button===2) aiming=true; });
-document.addEventListener('mouseup',(e)=>{ if(e.button===2) aiming=false; });
-document.addEventListener('contextmenu', e=>e.preventDefault());
-
-// Player stats
-let health = 100, ammo=15, score=0;
-const hud = document.getElementById('hud');
-function updateHUD(){ hud.innerText=`Health: ${health} | Ammo: ${ammo} | Score: ${score}`; }
-
-// Bullets
-const bullets = [];
-function shoot(){
-  if(ammo<=0) return;
-  ammo--; updateHUD();
-  const bulletGeo = new THREE.SphereGeometry(0.05,8,8);
-  const bulletMat = new THREE.MeshStandardMaterial({color:0xffff00});
-  const bullet = new THREE.Mesh(bulletGeo,bulletMat);
-  bullet.position.copy(camera.position);
-  bullet.velocity = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).multiplyScalar(50);
-  bullets.push(bullet);
-  scene.add(bullet);
-  // Play gun sound placeholder
-  const audio = new Audio('https://freesound.org/data/previews/320/320181_5260870-lq.mp3');
-  audio.play();
-}
-document.addEventListener('click', shoot);
-document.addEventListener('keydown', e=>{ if(e.code==='KeyR'){ ammo=15; updateHUD(); } });
-
-// Procedural Zombie Class
-class Zombie {
-  constructor(pos){
-    this.group = new THREE.Group();
-    this.health = 5;
-    this.speed = 1 + Math.random()*0.5; // slower/faster per zombie
-    this.attackCooldown=0;
-    this.alive=true;
-
-    // Torso
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,1,8), new THREE.MeshStandardMaterial({color:0x228B22}));
-    torso.position.y=1; this.group.add(torso);
-    // Head
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.25,8,8), new THREE.MeshStandardMaterial({color:0x32CD32}));
-    head.position.y=1.75; this.group.add(head);
-    // Arms
-    const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.8,8), new THREE.MeshStandardMaterial({color:0x006400}));
-    leftArm.position.set(-0.4,1.3,0); leftArm.rotation.z=Math.PI/8;
-    const rightArm = leftArm.clone(); rightArm.position.x=0.4; rightArm.rotation.z=-Math.PI/8;
-    // Legs
-    const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1,8), new THREE.MeshStandardMaterial({color:0x006400}));
-    leftLeg.position.set(-0.15,0.5,0);
-    const rightLeg = leftLeg.clone(); rightLeg.position.x=0.15;
-    this.group.add(leftArm,rightArm,leftLeg,rightLeg);
-
-    this.group.position.copy(pos);
-    this.group.traverse(c=>{ c.castShadow=c.receiveShadow=true; });
-    scene.add(this.group);
-
-    this.limbs = {torso, head, leftArm, rightArm, leftLeg, rightLeg};
-    this.hitTween=null;
-  }
-
-  walkAnimation(delta){
-    const t = Math.sin(Date.now()*0.005)*0.5;
-    this.limbs.leftArm.rotation.x=t;
-    this.limbs.rightArm.rotation.x=-t;
-    this.limbs.leftLeg.rotation.x=-t;
-    this.limbs.rightLeg.rotation.x=t;
-  }
-
-  gotHit(){
-    this.health--;
-    // Play hit sound
-    const audio = new Audio('https://freesound.org/data/previews/569/569790_12606905-lq.mp3');
-    audio.play();
-    // Hit animation
-    if(this.hitTween) this.hitTween.stop();
-    this.hitTween = new TWEEN.Tween(this.group.position)
-      .to({y:this.group.position.y+0.1},100)
-      .yoyo(true).repeat(1).start();
-    if(this.health<=0) this.die();
-    else this.speed*=0.8; // slow after hit
-  }
-
-  die(){
-    this.alive=false;
-    const audio = new Audio('https://freesound.org/data/previews/569/569792_12606905-lq.mp3');
-    audio.play();
-    new TWEEN.Tween(this.group.rotation)
-      .to({x:Math.PI/2},500)
-      .onComplete(()=>scene.remove(this.group))
-      .start();
-  }
-
-  attackPlayer(delta){
-    this.attackCooldown -= delta;
-    const dist = this.group.position.distanceTo(controls.getObject().position);
-    if(dist<1.5 && this.attackCooldown<=0){
-      health-=10; updateHUD();
-      this.attackCooldown=2; // 2s cooldown
-      // Hit animation
-      const audio = new Audio('https://freesound.org/data/previews/176/176754_3248244-lq.mp3');
-      audio.play();
-    }
-  }
-
-  update(delta){
-    if(!this.alive) return;
-    this.walkAnimation(delta);
-    const playerPos = controls.getObject().position.clone();
-    const dir = playerPos.clone().sub(this.group.position);
-    dir.y=0; // stay on ground
-    const distance = dir.length();
-    if(distance>1){
-      dir.normalize();
-      this.group.position.add(dir.multiplyScalar(delta*this.speed));
-    }
-    this.attackPlayer(delta);
-  }
+function addProduct() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return alert('Paste an Amazon link or ASIN.');
+  const asin = extractASIN(url);
+  const name = prompt('Enter product name:');
+  const price = prompt('Enter product price:');
+  const img = prompt('Enter image URL (optional):');
+  products.push({ asin, name, price, img });
+  render();
+  document.getElementById('urlInput').value = '';
 }
 
-// Game State
-let zombies=[];
-let round=1;
-const roundLabel=document.getElementById('round');
-function spawnZombies(count){
-  for(let i=0;i<count;i++){
-    const pos = new THREE.Vector3((Math.random()-0.5)*50,0,(Math.random()-0.5)*50);
-    zombies.push(new Zombie(pos));
-  }
-}
-spawnZombies(round*5);
-
-function nextRound(){
-  round++;
-  roundLabel.innerText="Round: "+round;
-  spawnZombies(round*5);
+function render() {
+  const div = document.getElementById('products');
+  div.innerHTML = '';
+  products.forEach((p, i) => {
+    div.innerHTML += `
+      <div class="product">
+        <img src="${p.img || 'https://via.placeholder.com/250x160?text=No+Image'}">
+        <h4>${p.name}</h4>
+        <p>Price: $${p.price}</p>
+        <p>ASIN: ${p.asin}</p>
+        <label><input type="checkbox" data-i="${i}"> Select</label>
+        <button onclick="removeProduct(${i})">Remove</button>
+      </div>`;
+  });
 }
 
-// Animate
-let prevTime=performance.now();
-function animate(){
-  requestAnimationFrame(animate);
-  const time=performance.now();
-  const delta=(time-prevTime)/1000; prevTime=time;
-
-  // Player movement with basic collision
-  let moveDir=new THREE.Vector3();
-  if(keys['KeyW']) moveDir.z=-1;
-  if(keys['KeyS']) moveDir.z=1;
-  if(keys['KeyA']) moveDir.x=-1;
-  if(keys['KeyD']) moveDir.x=1;
-  moveDir.normalize().multiplyScalar(delta*5);
-  const newPos = controls.getObject().position.clone().add(moveDir);
-  let blocked=false;
-  for(const b of buildings){
-    const box=new THREE.Box3().setFromObject(b);
-    if(box.containsPoint(newPos)) blocked=true;
-  }
-  if(!blocked) controls.getObject().position.add(moveDir);
-
-  // Jump
-  if(keys['Space'] && canJump){ verticalVelocity=5; canJump=false; }
-  verticalVelocity-=gravity*delta;
-  controls.getObject().position.y+=verticalVelocity*delta;
-  if(controls.getObject().position.y<=1.6){ verticalVelocity=0; controls.getObject().position.y=1.6; canJump=true; }
-
-  // Aiming
-  if(aiming){
-    camera.fov = THREE.MathUtils.lerp(camera.fov,50,0.1);
-    gun.position.lerp(new THREE.Vector3(0,-0.15,-0.5),0.1);
-  }else{
-    camera.fov = THREE.MathUtils.lerp(camera.fov,75,0.1);
-    gun.position.lerp(new THREE.Vector3(0,-0.2,-1),0.1);
-  }
-  camera.updateProjectionMatrix();
-
-  // Update bullets
-  for(let i=bullets.length-1;i>=0;i--){
-    const b=bullets[i];
-    b.position.add(b.velocity.clone().multiplyScalar(delta));
-    // Collision with zombies
-    for(const z of zombies){
-      if(!z.alive) continue;
-      if(b.position.distanceTo(z.group.position)<1){
-        z.gotHit();
-        scene.remove(b); bullets.splice(i,1); break;
-      }
-    }
-    if(b.position.length()>300){ scene.remove(b); bullets.splice(i,1); }
-  }
-
-  // Update zombies
-  for(const z of zombies) z.update(delta);
-
-  // Remove dead zombies
-  zombies = zombies.filter(z=>z.alive);
-
-  // Next round
-  if(zombies.length===0) nextRound();
-
-  TWEEN.update();
-
-  renderer.render(scene,camera);
+function removeProduct(i) {
+  products.splice(i, 1);
+  render();
 }
-animate();
 
-// Resize
-window.addEventListener('resize', ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+function saveWishlist() {
+  localStorage.setItem('wishlist', JSON.stringify(products));
+  alert('Saved!');
+}
+
+function loadWishlist() {
+  products = JSON.parse(localStorage.getItem('wishlist')) || [];
+  render();
+  alert('Loaded!');
+}
+
+function openAmazonCart() {
+  const checks = document.querySelectorAll('input[type=checkbox]:checked');
+  if (checks.length === 0) return alert('Select at least one item.');
+  let url = 'https://www.amazon.com/gp/aws/cart/add.html?';
+  checks.forEach((c, i) => {
+    const p = products[c.dataset.i];
+    url += `ASIN.${i+1}=${p.asin}&Quantity.${i+1}=1&`;
+  });
+  window.open(url, '_blank');
+}
+
+render();
 </script>
 </body>
 </html>
