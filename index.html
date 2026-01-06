@@ -1,306 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon Item Search</title>
-    <style>
-        /* General Styling */
-        body {
-            font-family: 'Amazon Ember', Arial, sans-serif;
-            background-color: #EAEDED;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+<meta charset="UTF-8">
+<title>KidCode Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        h1 {
-            color: #111;
-        }
-
-        /* Search Container */
-        .search-container {
-            width: 100%;
-            max-width: 600px;
-            margin-bottom: 20px;
-        }
-
-        #searchInput {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        /* Results Container */
-        #results {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .item {
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-        
-        .item:hover {
-            transform: translateY(-5px);
-        }
-
-        .item img {
-            max-width: 150px;
-            height: auto;
-            margin-bottom: 10px;
-        }
-
-        .item h3 {
-            font-size: 1em;
-            margin: 10px 0;
-            height: 40px; /* Fixed height to align text */
-            overflow: hidden;
-        }
-
-        .item p {
-            font-size: 1.2em;
-            color: #B12704;
-            font-weight: bold;
-        }
-
-        .select-btn {
-            background-color: #FF9900;
-            border: 1px solid #a88734;
-            color: #111;
-            padding: 10px 20px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-
-        .select-btn:hover {
-            background-color: #FFA51E;
-        }
-
-        /* Modal (Pop-up Card) Styling */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.6);
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 30px;
-            border: 1px solid #888;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            text-align: center;
-            position: relative;
-        }
-
-        .close-btn {
-            color: #aaa;
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .close-btn:hover {
-            color: #000;
-        }
-        
-        #modal-image {
-            max-width: 200px;
-            margin-bottom: 15px;
-        }
-
-        #modal-title {
-            font-size: 1.5em;
-            margin: 10px 0;
-        }
-
-        #modal-price {
-            font-size: 1.8em;
-            color: #B12704;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        #continue-btn {
-            background-color: #232f3e;
-            color: white;
-            padding: 12px 25px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        
-        #continue-btn:hover {
-            background-color: #3b4b5f;
-        }
-    </style>
+<style>
+* { box-sizing: border-box; font-family: monospace; }
+body {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  background: #050505;
+  border-bottom: 1px solid #111;
+}
+button {
+  background: #111;
+  color: #fff;
+  border: 1px solid #222;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+button.active { background: #222; }
+main {
+  flex: 1;
+  display: flex;
+}
+#editor, #library, #preview {
+  flex: 1;
+  display: none;
+  height: 100%;
+}
+textarea {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #0f0;
+  border: none;
+  padding: 10px;
+  font-size: 14px;
+}
+#library {
+  padding: 10px;
+  overflow-y: auto;
+}
+#preview {
+  background: black;
+  position: relative;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+}
+.card {
+  border: 1px solid #222;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+h3 { margin-top: 0; }
+</style>
 </head>
+
 <body>
 
-    <h1>📦 Amazon Item Search</h1>
+<header>
+  <button onclick="showTab('editor')" class="active">Editor</button>
+  <button onclick="showTab('library')">Library</button>
+  <button onclick="runCode()">▶ Run</button>
+</header>
 
-    <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Search for items like 'headphones' or 'coffee maker'...">
+<main>
+  <div id="editor">
+<textarea id="code">
+set background black
+
+create player at 160 240 size 20
+move player with arrows speed 4
+
+create button reset at 120 350
+on reset tap set background blue
+</textarea>
+  </div>
+
+  <div id="library">
+    <div class="card">
+      <h3>🎨 Colors</h3>
+      black, white, red, green, blue, yellow, purple, orange
     </div>
 
-    <div id="results"></div>
-
-    <div id="itemModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <img id="modal-image" src="" alt="Selected Item">
-            <h2 id="modal-title">Item Title</h2>
-            <p id="modal-price">$0.00</p>
-            <button id="continue-btn">Continue to Amazon</button>
-        </div>
+    <div class="card">
+      <h3>🧠 Commands</h3>
+<pre>
+set background COLOR
+create player at X Y size N
+move player with arrows speed N
+create button NAME at X Y
+on NAME tap set background COLOR
+</pre>
     </div>
 
-    <script>
-        // --- MOCK DATABASE ---
-        // In a real application, this data would come from an API.
-        const mockAmazonData = [
-            { id: 1, title: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones', price: '348.00', image: 'https://m.media-amazon.com/images/I/61vJtANMpvL._AC_SL1500_.jpg', query: 'headphones', url: 'https://www.amazon.com/dp/B09XNCS71T' },
-            { id: 2, title: 'Bose QuietComfort Ultra Wireless Noise Cancelling Headphones', price: '429.00', image: 'https://m.media-amazon.com/images/I/61O13SFTDPL._AC_SL1500_.jpg', query: 'headphones', url: 'https://www.amazon.com/dp/B0CCZ2611N' },
-            { id: 3, title: 'Keurig K-Elite Coffee Maker, Single Serve K-Cup Pod', price: '139.99', image: 'https://m.media-amazon.com/images/I/71kIA3zWvGL._AC_SL1500_.jpg', query: 'coffee maker', url: 'https://www.amazon.com/dp/B078X5B432' },
-            { id: 4, title: 'Logitech MX Master 3S - Wireless Performance Mouse', price: '99.99', image: 'https://m.media-amazon.com/images/I/61xK3Ym9S9L._AC_SL1500_.jpg', query: 'mouse', url: 'https://www.amazon.com/dp/B09HM94VDS' },
-            { id: 5, title: 'Apple AirPods Pro (2nd Generation) Wireless Earbuds', price: '249.00', image: 'https://m.media-amazon.com/images/I/61f1YfTkTDL._AC_SL1500_.jpg', query: 'headphones', url: 'https://www.amazon.com/dp/B0BDHWDR12' },
-            { id: 6, title: 'Nespresso VertuoPlus Coffee and Espresso Machine by DeLonghi', price: '159.00', image: 'https://m.media-amazon.com/images/I/71IKh1e6cLL._AC_SL1500_.jpg', query: 'coffee maker', url: 'https://www.amazon.com/dp/B01N6S5L2S' }
-        ];
+    <div class="card">
+      <h3>📚 Tutorials</h3>
+      <b>Lesson 1:</b> Change background<br>
+      <b>Lesson 2:</b> Move a player<br>
+      <b>Lesson 3:</b> Buttons & events<br>
+      <b>Lesson 4:</b> Make Snake (coming next)
+    </div>
 
-        // --- ELEMENTS ---
-        const searchInput = document.getElementById('searchInput');
-        const resultsContainer = document.getElementById('results');
-        const modal = document.getElementById('itemModal');
-        const closeBtn = document.querySelector('.close-btn');
-        const continueBtn = document.getElementById('continue-btn');
+    <div class="card">
+      <h3>🎮 Game Examples</h3>
+      Snake, Flappy Bird, Dodge Game, Clicker Game
+    </div>
+  </div>
 
-        // --- FUNCTIONS ---
-        
-        /**
-         * Simulates fetching data from an API based on a search query.
-         * @param {string} query - The search term.
-         * @returns {Array} - An array of items that match the query.
-         */
-        function searchItems(query) {
-            if (!query) {
-                return []; // Return nothing if the search is empty
-            }
-            const lowerCaseQuery = query.toLowerCase();
-            return mockAmazonData.filter(item => item.query.includes(lowerCaseQuery) || item.title.toLowerCase().includes(lowerCaseQuery));
-        }
+  <div id="preview">
+    <canvas id="game"></canvas>
+  </div>
+</main>
 
-        /**
-         * Displays the search results on the page.
-         * @param {Array} items - The items to display.
-         */
-        function displayResults(items) {
-            resultsContainer.innerHTML = ''; // Clear previous results
-            if (items.length === 0) {
-                resultsContainer.innerHTML = '<p>No items found.</p>';
-                return;
-            }
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = 360;
+canvas.height = 500;
 
-            items.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'item';
-                itemDiv.innerHTML = `
-                    <img src="${item.image}" alt="${item.title}">
-                    <h3>${item.title}</h3>
-                    <p>$${item.price}</p>
-                    <button class="select-btn" data-id="${item.id}">Select</button>
-                `;
-                resultsContainer.appendChild(itemDiv);
-            });
-        }
+let player = null;
+let bgColor = "black";
+let buttons = {};
+let keys = {};
 
-        /**
-         * Opens the modal with the selected item's details.
-         * @param {number} itemId - The ID of the item to show.
-         */
-        function openModal(itemId) {
-            const item = mockAmazonData.find(i => i.id === parseInt(itemId));
-            if (item) {
-                document.getElementById('modal-image').src = item.image;
-                document.getElementById('modal-title').textContent = item.title;
-                document.getElementById('modal-price').textContent = `$${item.price}`;
-                // Store the Amazon URL in the button's data attribute
-                continueBtn.dataset.url = item.url;
-                modal.style.display = 'flex'; // Show the modal
-            }
-        }
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
-        // --- EVENT LISTENERS ---
+canvas.addEventListener("click", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  for (let b in buttons) {
+    let btn = buttons[b];
+    if (x > btn.x && x < btn.x+100 && y > btn.y && y < btn.y+40) {
+      btn.action();
+    }
+  }
+});
 
-        // Listen for input in the search bar
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value;
-            const items = searchItems(query);
-            displayResults(items);
-        });
+function showTab(tab) {
+  document.querySelectorAll("main > div").forEach(d => d.style.display = "none");
+  document.querySelectorAll("header button").forEach(b => b.classList.remove("active"));
+  document.getElementById(tab).style.display = "block";
+  event.target.classList.add("active");
+}
 
-        // Listen for clicks on the results container (for the 'Select' buttons)
-        resultsContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('select-btn')) {
-                const itemId = e.target.dataset.id;
-                openModal(itemId);
-            }
-        });
+showTab("editor");
 
-        // Close the modal when the 'x' is clicked
-        closeBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
+function runCode() {
+  buttons = {};
+  player = null;
+  parseCode(document.getElementById("code").value);
+  showTab("preview");
+  requestAnimationFrame(loop);
+}
 
-        // Close the modal if the user clicks outside of the content area
-        window.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
+function parseCode(code) {
+  const lines = code.split("\n");
+  lines.forEach(line => {
+    line = line.trim();
+    let parts = line.split(" ");
 
-        // Redirect to Amazon when the 'Continue' button is clicked
-        continueBtn.addEventListener('click', () => {
-            const url = continueBtn.dataset.url;
-            if (url) {
-                window.open(url, '_blank'); // Open in a new tab
-                modal.style.display = 'none'; // Close the modal
-            }
-        });
-    </script>
+    if (line.startsWith("set background")) {
+      bgColor = parts[2];
+    }
+
+    if (line.startsWith("create player")) {
+      player = {
+        x: parseInt(parts[3]),
+        y: parseInt(parts[4]),
+        size: parseInt(parts[6]),
+        speed: 0
+      };
+    }
+
+    if (line.startsWith("move player")) {
+      player.speed = parseInt(parts[6]);
+    }
+
+    if (line.startsWith("create button")) {
+      buttons[parts[2]] = {
+        x: parseInt(parts[4]),
+        y: parseInt(parts[5]),
+        action: () => {}
+      };
+    }
+
+    if (line.startsWith("on")) {
+      let name = parts[1];
+      let color = parts[6];
+      if (buttons[name]) {
+        buttons[name].action = () => bgColor = color;
+      }
+    }
+  });
+}
+
+function loop() {
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if (player) {
+    if (keys["ArrowLeft"]) player.x -= player.speed;
+    if (keys["ArrowRight"]) player.x += player.speed;
+    if (keys["ArrowUp"]) player.y -= player.speed;
+    if (keys["ArrowDown"]) player.y += player.speed;
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+  }
+
+  for (let b in buttons) {
+    let btn = buttons[b];
+    ctx.fillStyle = "#222";
+    ctx.fillRect(btn.x, btn.y, 100, 40);
+    ctx.fillStyle = "white";
+    ctx.fillText(b, btn.x+20, btn.y+25);
+  }
+
+  requestAnimationFrame(loop);
+}
+</script>
+
 </body>
 </html>
